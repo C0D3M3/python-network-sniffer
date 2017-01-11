@@ -7,7 +7,6 @@ import threading
 from ctypes import *
 
 # http://stackoverflow.com/questions/29306747/python-sniffing-from-black-hat-python-book
-host   = ""
 
 class Ether(Structure):
 
@@ -253,21 +252,14 @@ class IGMP(Structure):
         self.grpAddr = socket.inet_ntoa(struct.pack("@I", self.groupAddress))
 
 
-class TCP(Structure):
-
-    #-------------------#
-    # TO-DO:
-    # ctypes uses the native byte order for Structures and Unions.
-    # To build structures with non-native byte order, you can use one of the BigEndianStructure, LittleEndianStructure  base classes.
-    # i.e. change "Structure" to "BigEndianStructure" to get rid of all those struct.unpack below...
-    #-------------------#
+class TCP(BigEndianStructure):
 
     _fields_ = [ # https://tools.ietf.org/html/rfc793#page-15
             ("src_port",    c_ushort),
             ("dst_port",    c_ushort),
             ("seq_num",     c_uint32),
             ("ack_num",     c_uint32),
-            ("ushort",      c_ushort),
+            ("offset_and_ctrl",      c_ushort),
             ("window",      c_ushort),
             ("checksum",    c_ushort),
             ("urg_pointer", c_ushort)
@@ -277,13 +269,6 @@ class TCP(Structure):
         return self.from_buffer_copy(socket_buffer)
 
     def __init__(self, socket_buffer):
-        # bytes must be swapped to get actual values
-        self.source_port = struct.unpack("<H", struct.pack(">H",self.src_port))[0]
-        self.destination_port = struct.unpack("<H", struct.pack(">H",self.dst_port))[0]
-        self.sequence_number = struct.unpack("<I", struct.pack(">I",self.seq_num))[0]
-        self.acknowledgment_number = struct.unpack("<I", struct.pack(">I",self.ack_num))[0]
-
-        self.offset_and_ctrl = struct.unpack("<H", struct.pack(">H",self.ushort))[0]
 
         self.data_offset = (self.offset_and_ctrl >> 12) * 4
         self.reserved = (self.offset_and_ctrl >> 9) & 0x0007
@@ -297,11 +282,6 @@ class TCP(Structure):
         self.SYN = (self.offset_and_ctrl >> 1) & 0x0001
         self.FIN = self.offset_and_ctrl & 0x0001
 
-
-        self.tcp_window = struct.unpack("<H", struct.pack(">H",self.window))[0]
-        self.tcp_checksum = struct.unpack("<H", struct.pack(">H",self.checksum))[0]
-        self.urgent_pointer = struct.unpack("<H", struct.pack(">H",self.urg_pointer))[0]
-
         self.options_map = {
                 2:[4,"Maximum Segment Size"],
                 3:[3,"Windows Scale"],
@@ -309,7 +289,6 @@ class TCP(Structure):
                 8:[10,"Timestamps"],
                 10:["3","Partial Order Service Profile"]
                 }
-
 
     # http://www.iana.org/assignments/tcp-parameters/tcp-parameters.xhtml
     # http://www.firewall.cx/networking-topics/protocols/tcp/138-tcp-options.html
@@ -385,35 +364,25 @@ class UDP(BigEndianStructure):
         print b'\n'.join(result)
 
 
-class DNS(Structure):
-
-    #-------------------#
-    # TO-DO:
-    # ctypes uses the native byte order for Structures and Unions.
-    # To build structures with non-native byte order, you can use one of the BigEndianStructure, LittleEndianStructure  base classes.
-    # i.e. change "Structure" to "BigEndianStructure" to get rid of all those struct.unpack below...
-    #-------------------#
+class DNS(BigEndianStructure):
 
     # http://www.networksorcery.com/enp/protocol/dns.htm
     # http://www.tcpipguide.com/free/t_TCPIPDomainNameSystemDNS.htm
     # http://www.zytrax.com/books/dns/ch15/
+
     _fields_ = [
             ('id',          c_ushort),
-            ('ushort',      c_ushort),
-            ('tot_questions',       c_ushort),
-            ('tot_answer_RRs',      c_ushort),
-            ('tot_authority_RRs',   c_ushort),
-            ('tot_additional_RRs',  c_ushort)
+            ('flags',       c_ushort),
+            ('quest',       c_ushort),
+            ('answ_RRs',    c_ushort),
+            ('auth_RRs',    c_ushort),
+            ('add_RRs',     c_ushort)
             ]
 
     def __new__(self, socket_buffer):
         return self.from_buffer_copy(socket_buffer)
 
     def __init__(self, socket_buffer):
-
-        self.identification = struct.unpack("<H", struct.pack(">H",self.id))[0]
-
-        self.flags = struct.unpack("<H", struct.pack(">H",self.ushort))[0]
 
         self.QR = (self.flags >> 15) & 0x0001
         if self.QR == 0:
@@ -468,13 +437,6 @@ class DNS(Structure):
             self.Rcode = self.rcode_map[self.rcode]
         except:
             self.Rcode = "Rcode %d unknown" % self.rcode
-
-
-        self.quest = struct.unpack("<H", struct.pack(">H",self.tot_questions))[0]
-        self.answ_RRs = struct.unpack("<H", struct.pack(">H",self.tot_answer_RRs))[0]
-        self.auth_RRs = struct.unpack("<H", struct.pack(">H",self.tot_authority_RRs))[0]
-        self.add_RRs = struct.unpack("<H", struct.pack(">H",self.tot_additional_RRs))[0]
-
 
         self.qtypes_map = { # http://www.networksorcery.com/enp/rfc/rfc1035.txt
                 1:"A",
@@ -879,10 +841,10 @@ try:
 
                 print
                 print "\t\tTCP >>"
-                print "\t\t\tSrc Port:\t\t%s" %  tcp_header.source_port
-                print "\t\t\tDst Port:\t\t%s" %  tcp_header.destination_port
-                print "\t\t\tSeq Number:\t\t0x%x" % tcp_header.sequence_number
-                print "\t\t\tACK Number:\t\t0x %x" % tcp_header.acknowledgment_number
+                print "\t\t\tSrc Port:\t\t%s" %  tcp_header.src_port
+                print "\t\t\tDst Port:\t\t%s" %  tcp_header.dst_port
+                print "\t\t\tSeq Number:\t\t0x%x" % tcp_header.seq_num
+                print "\t\t\tACK Number:\t\t0x %x" % tcp_header.ack_num
                 print "\t\t\tData Offset:\t\t%d bytes" % tcp_header.data_offset
                 print "\t\t\tReserved MBZ:\t\t%d" % tcp_header.reserved
                 print "\t\t\t|NS |CWR|ECE|URG|ACK|PSH|RST|SYN|FIN|"
@@ -897,9 +859,9 @@ try:
                         tcp_header.SYN,
                         tcp_header.FIN
                         )
-                print "\t\t\tWindow\t\t\t%d" % tcp_header.tcp_window
-                print "\t\t\tChecksum:\t\t0x%x" % tcp_header.tcp_checksum
-                print "\t\t\tUrgent Pointer:\t\t%d" % tcp_header.urgent_pointer
+                print "\t\t\tWindow\t\t\t%d" % tcp_header.window
+                print "\t\t\tChecksum:\t\t0x%x" % tcp_header.checksum
+                print "\t\t\tUrgent Pointer:\t\t%d" % tcp_header.urg_pointer
 
 
                 if tcp_header.data_offset > 20:
@@ -959,7 +921,7 @@ try:
 
                     print
                     print "\t\t\tDNS >>"
-                    print "\t\t\t\tIdentification:\t\t%x" % dns_header.identification
+                    print "\t\t\t\tIdentification:\t\t%x" % dns_header.id
                     print "\t\t\t\tQ/R:\t\t\t%s" % dns_header.qr
                     print "\t\t\t\tOpcode:\t\t\t%s" % dns_header.Opcode
                     print "\t\t\t\tAuthoritative Answer\t%d" % dns_header.AA
