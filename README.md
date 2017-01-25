@@ -1,4 +1,4 @@
-# python-packet-sniffer
+# packman.py
 
 root@codeme:~# python python-packet-sniffer.py
 
