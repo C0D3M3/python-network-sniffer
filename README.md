@@ -1,7 +1,7 @@
 # packman.py
 
-root@codeme:~# python python-packet-sniffer.py
+root@hacker:~# packman.py
 
-This python program decodes packets and prints them to the terminal.
-
-Includes Data Link, Network and Transport layer packet types.
+* Decode packets from the data-link layer up and print them to the terminal.
+* Forge your own packets and create custom attacks.
+* Filter for specific packet types.
