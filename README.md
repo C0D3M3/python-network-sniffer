@@ -2,7 +2,7 @@
 
 Raw Socket Sniffer
 
-root@kali:~# packman.py
+root@kali:~# p2net.py
 
 * Decode packets from the data-link layer up and print them to the terminal.
 * Forge your own packets and create custom attacks.
