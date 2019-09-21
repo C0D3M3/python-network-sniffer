@@ -1,4 +1,4 @@
-# packman.py
+# p2net.py
 
 Raw Socket Sniffer
 
