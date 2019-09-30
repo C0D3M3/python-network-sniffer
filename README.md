@@ -1,4 +1,4 @@
-# p2net.py
+# p2sockets.py
 
 Raw Socket Sniffer
 
